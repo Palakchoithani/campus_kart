@@ -16,7 +16,6 @@ import Chat from './pages/Chat'
 import CreateListing from './pages/CreateListing'
 import ListingDetail from './pages/ListingDetail'
 import Profile from './pages/Profile'
-import { MOCK_CONVERSATIONS, MOCK_LISTINGS } from './mockData'
 
 // Components
 import DarkModeToggle from './components/DarkModeToggle'
@@ -42,21 +41,7 @@ function AppLayout() {
     const routeConversation = location.state?.conversation
     if (routeConversation?.sellerId === chatUserId) return routeConversation
 
-    const mockConversation = MOCK_CONVERSATIONS.find(
-      (conversation) => conversation.sellerId === chatUserId || conversation.userId2 === chatUserId
-    )
-
-    return mockConversation
-      ? {
-          listingId: mockConversation.listingId,
-          sellerId: mockConversation.sellerId,
-          title: mockConversation.listingTitle || 'Chat',
-          roomId: mockConversation.id,
-          id: mockConversation.id,
-          otherUserName: mockConversation.otherUserName,
-          otherUserEmail: mockConversation.otherUserEmail,
-        }
-      : selectedConversation
+    return selectedConversation
   }, [chatUserId, location.state, selectedConversation])
 
   const activeListing = useMemo(() => {
@@ -64,17 +49,13 @@ function AppLayout() {
     if (selectedListing?.id === listingId) return selectedListing
 
     const foundListing = listings.find((listing) => listing.id === listingId)
-      || MOCK_LISTINGS.find((listing) => listing.id === listingId)
 
     return foundListing || selectedListing
   }, [listingId, listings, selectedListing])
 
   // Handle listing creation
   const handleCreateListing = (newListing) => {
-    setListings((prev) => [
-      { ...newListing, id: `m${Date.now()}`, createdAt: new Date().toISOString() },
-      ...prev,
-    ])
+    setListings((prev) => [newListing, ...prev])
   }
 
   // Handle listing deletion
@@ -216,7 +197,27 @@ function AppLayout() {
                 <ListingDetail
                   listing={activeListing}
                   onBack={() => navigate('/home')}
-                  onChat={() => navigate(`/chat/${activeListing?.userId}`)}
+                  onChat={(targetListingId, targetSellerId) => {
+                    if (!activeListing || !targetListingId || !targetSellerId) {
+                      navigate('/inbox')
+                      return
+                    }
+
+                    const conversationData = {
+                      listingId: targetListingId,
+                      sellerId: targetSellerId,
+                      title: activeListing.title || 'Chat',
+                      roomId: `conversation:${targetListingId}:${[user.id, targetSellerId].sort().join(':')}`,
+                      id: `conversation:${targetListingId}:${[user.id, targetSellerId].sort().join(':')}`,
+                      otherUserName: activeListing.userEmail?.split('@')[0] || 'Seller',
+                      otherUserEmail: activeListing.userEmail,
+                    }
+
+                    setSelectedConversation(conversationData)
+                    navigate(`/chat/${targetSellerId}`, {
+                      state: { conversation: conversationData },
+                    })
+                  }}
                   onDeleteListing={handleDeleteListing}
                   user={user}
                 />

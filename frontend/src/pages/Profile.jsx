@@ -69,12 +69,12 @@ export default function Profile({ user, listings, onDeleteListing }) {
             <span>Active Listings</span>
           </div>
           <div className="stat-card">
-            <strong>5</strong>
-            <span>Transactions</span>
+            <strong>{Number(user?.ratingCount || 0)}</strong>
+            <span>Total Ratings</span>
           </div>
           <div className="stat-card">
-            <strong>4.8★</strong>
-            <span>Rating</span>
+            <strong>{Number(user?.ratingAverage || 0).toFixed(1)}★</strong>
+            <span>Seller Score</span>
           </div>
         </div>
 

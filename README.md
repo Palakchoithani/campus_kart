@@ -41,7 +41,7 @@ CORS_ORIGIN=http://localhost:5173,http://localhost:5174
 
 ```env
 # frontend/.env
-VITE_API_URL=/api
+VITE_API_URL=http://localhost:4000
 ```
 
 ## Install
@@ -55,18 +55,14 @@ The backend already uses `mongoose` and the frontend already uses `socket.io-cli
 
 ## Run Locally
 
-Start both frontend and backend together from project root:
-
-```bash
-npm run dev
-```
-
-Or run them separately in two terminals:
+Start the backend first:
 
 ```bash
 cd backend
 npm run dev
 ```
+
+Then start the frontend in a second terminal:
 
 ```bash
 cd frontend
@@ -86,15 +82,27 @@ npm run dev
 
 ## Deployment Notes
 
-- Deploy the frontend to Vercel
-- Deploy the backend to Render or Railway
-- Set `VITE_API_URL` in Vercel to the deployed backend URL
-- Set `MONGODB_URI`, `JWT_SECRET`, `CORS_ORIGIN`, and `STRIPE_SECRET_KEY` in your backend host
-- Keep MongoDB accessible from the backend host
+Use this flow for production launch (Vercel + Render + MongoDB Atlas):
 
-## Demo Seed Data
-
-On first backend startup, the app seeds a demo user and sample listings if the database is empty.
-
-- Demo email: `demo@example.com`
-- Demo password: `password123`
+1. Create a MongoDB Atlas cluster and copy the connection string.
+2. Deploy `backend/` as a Render Web Service.
+3. Set backend env vars on Render:
+	- `NODE_ENV=production`
+	- `PORT=4000`
+	- `MONGODB_URI=<your atlas uri>`
+	- `JWT_SECRET=<long random secret>`
+	- `STRIPE_SECRET_KEY=<your stripe secret>`
+	- `FRONTEND_URL=https://<your-vercel-domain>`
+	- `CORS_ORIGIN=https://<your-vercel-domain>`
+4. Confirm backend health endpoint: `https://<render-service>/health`.
+5. Deploy `frontend/` as a Vercel project.
+6. Set frontend env var on Vercel:
+	- `VITE_API_URL=https://<your-render-service>`
+7. Redeploy frontend after env var is saved.
+8. Open the live app and verify:
+	- signup/login
+	- create listing
+	- message flow
+	- ratings
+9. In Stripe dashboard, replace test keys with live keys before real payments.
+10. Add custom domain and HTTPS in both Vercel and Render before launch.

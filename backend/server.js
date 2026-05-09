@@ -20,26 +20,9 @@ const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,http:/
   .map((origin) => origin.trim())
   .filter(Boolean)
 
-function isLocalDevOrigin(origin) {
-  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
-}
-
-function isOriginAllowed(origin) {
-  if (!origin) return true
-  if (allowedOrigins.includes(origin)) return true
-  return isLocalDevOrigin(origin)
-}
-
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (isOriginAllowed(origin)) {
-        callback(null, true)
-        return
-      }
-
-      callback(new Error(`CORS blocked for origin: ${origin}`))
-    },
+    origin: allowedOrigins,
   }),
 )
 // Listing images are sent as base64 data URLs from the frontend.
@@ -48,14 +31,7 @@ app.use(express.json({ limit: '25mb' }))
 
 const io = new Server(server, {
   cors: {
-    origin: (origin, callback) => {
-      if (isOriginAllowed(origin)) {
-        callback(null, true)
-        return
-      }
-
-      callback(new Error(`Socket CORS blocked for origin: ${origin}`))
-    },
+    origin: allowedOrigins,
   },
 })
 

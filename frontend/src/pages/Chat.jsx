@@ -1,9 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import api from '../services/api'
 import { SkeletonChatBubble } from '../components/Skeleton'
-import { MOCK_CHAT_MESSAGES } from '../mockData'
 import { getStoredMessages, saveMessages, mergeMessages, dedupMessages } from '../utils/messageStorage'
-import { createAutoReplyMessage, getReplyDelay } from '../utils/autoReply'
 import './Chat.css'
 
 export default function Chat({ listingId, sellerId, user, onBack, listingTitle }) {
@@ -16,8 +14,6 @@ export default function Chat({ listingId, sellerId, user, onBack, listingTitle }
   const inputRef = useRef(null)
   const isNearBottomRef = useRef(true)
   const shouldAutoScrollRef = useRef(true)
-  const autoReplyTimeoutRef = useRef(null)
-  const conversationKeyRef = useRef(`${listingId}_${sellerId}`)
 
   const normalize = useCallback((items) => {
     const map = new Map()
@@ -60,11 +56,6 @@ export default function Chat({ listingId, sellerId, user, onBack, listingTitle }
     inputRef.current?.focus()
   }, [listingId, sellerId])
 
-  // Update conversation key when IDs change
-  useEffect(() => {
-    conversationKeyRef.current = `${listingId}_${sellerId}`
-  }, [listingId, sellerId])
-
   const fetchMessages = useCallback(async () => {
     if (!listingId || !sellerId) {
       setLoading(false)
@@ -83,29 +74,15 @@ export default function Chat({ listingId, sellerId, user, onBack, listingTitle }
       setMessages(normalize(merged))
       setError(null)
     } catch (err) {
-      // On error, use stored messages or demo fallback
+      // Preserve stored messages for continuity if refresh fails.
       const storedMessages = getStoredMessages(listingId, sellerId)
-      
-      if (storedMessages.length > 0) {
-        setMessages(normalize(storedMessages))
-      } else {
-        // Demo Fallback
-        const mockKey = Object.keys(MOCK_CHAT_MESSAGES).find(
-          (k) =>
-            MOCK_CHAT_MESSAGES[k].some((m) => m.listingId === listingId) ||
-            k.includes(listingId)
-        ) || 'c1'
-        const mockMessages = (MOCK_CHAT_MESSAGES[mockKey] || []).map((m) => ({
-          ...m,
-          senderId: m.senderId === 'me' ? user?.id : sellerId,
-        }))
-        setMessages(normalize(mockMessages))
-      }
-      setError(null)
+
+      setMessages(normalize(storedMessages))
+      setError(err.message || 'Failed to load messages')
     } finally {
       setLoading(false)
     }
-  }, [listingId, normalize, sellerId, user?.id])
+  }, [listingId, normalize, sellerId])
 
   useEffect(() => {
     if (!listingId || !sellerId) {
@@ -115,42 +92,13 @@ export default function Chat({ listingId, sellerId, user, onBack, listingTitle }
     shouldAutoScrollRef.current = true
     setLoading(true)
     fetchMessages()
-    
+
     // Poll less frequently to reduce state churn
     const poll = setInterval(fetchMessages, 5000)
     return () => {
       clearInterval(poll)
-      if (autoReplyTimeoutRef.current) {
-        clearTimeout(autoReplyTimeoutRef.current)
-      }
     }
   }, [listingId, sellerId, fetchMessages])
-
-  // Auto-reply handler
-  const scheduleAutoReply = useCallback((userMessage) => {
-    if (autoReplyTimeoutRef.current) {
-      clearTimeout(autoReplyTimeoutRef.current)
-    }
-
-    const delay = getReplyDelay()
-    
-    autoReplyTimeoutRef.current = setTimeout(() => {
-      const autoReplyMsg = createAutoReplyMessage(
-        userMessage,
-        sellerId,
-        'Seller',
-        listingId
-      )
-      
-      setMessages((prev) => {
-        const updated = normalize([...prev, autoReplyMsg])
-        // Persist the auto-reply
-        saveMessages(listingId, sellerId, updated)
-        shouldAutoScrollRef.current = true
-        return updated
-      })
-    }, delay)
-  }, [listingId, sellerId, normalize])
 
   const handleSend = async (e) => {
     e.preventDefault()
@@ -191,26 +139,12 @@ export default function Chat({ listingId, sellerId, user, onBack, listingTitle }
         return normalized
       })
       
-      // Schedule auto-reply in demo mode
-      scheduleAutoReply(text)
-      
       shouldAutoScrollRef.current = true
       scrollToBottom('smooth')
       setError(null)
     } catch (err) {
-      // In demo mode, keep the optimistic message
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === optimisticMsg.id
-            ? { ...m, isOptimistic: false, isDemoMode: true }
-            : m
-        )
-      )
-      
-      // Still schedule auto-reply even if "send" fails (demo mode)
-      scheduleAutoReply(text)
-      
-      setError(null)
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id))
+      setError(err.message || 'Failed to send message')
     } finally {
       setSubmitting(false)
       inputRef.current?.focus()
@@ -327,13 +261,11 @@ export default function Chat({ listingId, sellerId, user, onBack, listingTitle }
                     className={`chat-message-group chat-message-group--${mine ? 'mine' : 'theirs'}`}
                     style={{
                       animation: msg.isOptimistic ? 'fadeUp 300ms var(--ease-out)' : 'none',
-                      opacity: msg.isOptimistic && msg.isDemoMode === false ? 1 : 1
+                      opacity: 1,
                     }}
                   >
                     <div
-                      className={`chat-bubble chat-bubble--${
-                        mine ? 'mine' : 'theirs'
-                      }${msg.isDemoMode ? ' chat-bubble--demo' : ''}`}
+                      className={`chat-bubble chat-bubble--${mine ? 'mine' : 'theirs'}`}
                     >
                       {msg.senderName && !mine && (
                         <div className="chat-bubble__sender">
@@ -343,8 +275,7 @@ export default function Chat({ listingId, sellerId, user, onBack, listingTitle }
                       <p style={{ margin: 0, wordBreak: 'break-word' }}>{msg.text}</p>
                       <span className="chat-bubble__time">
                         {formatTime(msg.createdAt)}
-                        {msg.isDemoMode && <span style={{ marginLeft: '0.4rem' }}>📶</span>}
-                        {msg.isOptimistic && !msg.isDemoMode && <span style={{ marginLeft: '0.4rem' }}>⟳</span>}
+                        {msg.isOptimistic && <span style={{ marginLeft: '0.4rem' }}>⟳</span>}
                       </span>
                     </div>
                   </div>

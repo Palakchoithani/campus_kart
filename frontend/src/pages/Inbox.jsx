@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { SkeletonInboxItem } from '../components/Skeleton'
-import { MOCK_CONVERSATIONS } from '../mockData'
 import './Inbox.css'
 
 export default function Inbox({ activeConversationId, onSelectConversation }) {
@@ -13,7 +12,7 @@ export default function Inbox({ activeConversationId, onSelectConversation }) {
   const [searchQuery, setSearchQuery] = useState('')
 
   const filtered = useMemo(() => {
-    const list = conversations.length > 0 ? conversations : MOCK_CONVERSATIONS
+    const list = conversations
     if (!searchQuery.trim()) return list
     const q = searchQuery.toLowerCase()
     return list.filter(c =>
@@ -31,8 +30,7 @@ export default function Inbox({ activeConversationId, onSelectConversation }) {
         setConversations(Array.isArray(data) && data.length > 0 ? data : [])
         setError(null)
       } catch (err) {
-        // Silently fallback to mock in demo
-        setError(null)
+        setError(err.message || 'Failed to load conversations')
       } finally {
         setLoading(false)
       }

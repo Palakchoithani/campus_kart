@@ -99,28 +99,15 @@ export default function CreateListing({ onCreateListing }) {
   const createDirectly = async (data) => {
     try {
       const result = await api.createListing(data)
-      const newListing = result?.listing || {
-        ...data,
-        id: 'new-' + Date.now(),
-        userEmail: 'you@college.edu',
-        createdAt: new Date().toISOString(),
-        image: data.images?.[0] || ''
+      const newListing = result?.listing
+      if (!newListing) {
+        throw new Error('Server did not return created listing')
       }
       toast.success('Listing posted! 🎉')
       onCreateListing?.(newListing)
       clearForm()
     } catch (err) {
-      // Fallback for stable demo experience
-      const mockListing = {
-        ...data,
-        id: 'new-' + Date.now(),
-        userEmail: 'you@college.edu',
-        createdAt: new Date().toISOString(),
-        image: data.images?.[0] || ''
-      }
-      toast.success('Listing posted (Demo Mode)! 🎉')
-      onCreateListing?.(mockListing)
-      clearForm()
+      toast.error(err.message || 'Failed to post listing')
     }
   }
 

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import ListingCard from '../components/ListingCard'
 import { SkeletonCard } from '../components/Skeleton'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
-import { MOCK_LISTINGS } from '../mockData'
 import api from '../services/api'
 import './Home.css'
 
@@ -29,14 +28,36 @@ export default function Home({ listings = [], setListings, onSelectListing, user
   const [deleteModalState, setDeleteModalState] = useState({ isOpen: false, listing: null })
   const searchRef = useRef(null)
 
-  // Initialize listings with mock data if empty
   useEffect(() => {
-    if (listings.length === 0) {
-      setListings(MOCK_LISTINGS)
-    }
-  }, [])
+    if (listings.length > 0) return
 
-  const displayListings = listings.length > 0 ? listings : MOCK_LISTINGS
+    let cancelled = false
+    const loadListings = async () => {
+      setLoading(true)
+      try {
+        const data = await api.getListings()
+        if (!cancelled) {
+          setListings(Array.isArray(data) ? data : [])
+          setError(null)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err.message || 'Failed to load listings')
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadListings()
+    return () => {
+      cancelled = true
+    }
+  }, [listings.length, setListings])
+
+  const displayListings = listings
 
   const filteredListings = useMemo(() => {
     let result = displayListings.filter((l) => {

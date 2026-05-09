@@ -3,14 +3,9 @@ import api from '../services/api'
 import PaymentModal from '../components/PaymentModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import { useToast } from '../context/ToastContext.jsx'
-import { getStoredRatings, mergeRatings, upsertStoredRating } from '../utils/ratingStorage'
 import './ListingDetail.css'
 
 const STARS = [1, 2, 3, 4, 5]
-
-function isMongoObjectId(value) {
-  return typeof value === 'string' && /^[a-fA-F0-9]{24}$/.test(value)
-}
 
 function StarRating({ value, onChange, readOnly = false }) {
   const [hovered, setHovered] = useState(0)
@@ -48,9 +43,7 @@ export default function ListingDetail({ listing, onBack, onChat, onDeleteListing
   const fetchRatings = async () => {
     try {
       const data = await api.getRatings(listing.id)
-      const storedRatings = getStoredRatings(listing.id)
-      const mergedRatings = mergeRatings(data.ratings || [], storedRatings)
-      const visibleRatings = mergedRatings.length > 0 ? mergedRatings : (data.ratings || [])
+      const visibleRatings = data.ratings || []
 
       setRatings(visibleRatings)
       setAvgRating(
@@ -60,14 +53,9 @@ export default function ListingDetail({ listing, onBack, onChat, onDeleteListing
       )
       setRatingCount(visibleRatings.length > 0 ? visibleRatings.length : (data.count || 0))
     } catch (err) {
-      const storedRatings = getStoredRatings(listing.id)
-      setRatings(storedRatings)
-      setAvgRating(
-        storedRatings.length > 0
-          ? Number((storedRatings.reduce((sum, rating) => sum + Number(rating.rating || 0), 0) / storedRatings.length).toFixed(1))
-          : 0,
-      )
-      setRatingCount(storedRatings.length)
+      setRatings([])
+      setAvgRating(0)
+      setRatingCount(0)
       console.error('Failed to fetch ratings:', err)
     }
   }
@@ -79,32 +67,13 @@ export default function ListingDetail({ listing, onBack, onChat, onDeleteListing
     if (!user) { toast.error('Please login to rate'); return }
     setSubmitting(true)
 
-    const localRating = {
-      id: `local-rating-${listing.id}-${user.id}-${Date.now()}`,
-      listingId: listing.id,
-      userId: user.id,
-      userEmail: user.email || '',
-      rating: Number(ratingForm.rating),
-      comment: ratingForm.comment,
-      createdAt: new Date().toISOString(),
-      isLocalOnly: true,
-    }
-
     try {
-      if (isMongoObjectId(listing.id)) {
-        const savedRating = await api.createRating(listing.id, ratingForm.rating, ratingForm.comment)
-        upsertStoredRating(listing.id, savedRating)
-      } else {
-        upsertStoredRating(listing.id, localRating)
-      }
+      await api.createRating(listing.id, ratingForm.rating, ratingForm.comment)
       setRatingForm({ rating: 5, comment: '' })
       await fetchRatings()
       toast.success('Rating submitted!')
     } catch (err) {
-      upsertStoredRating(listing.id, localRating)
-      setRatingForm({ rating: 5, comment: '' })
-      await fetchRatings()
-      toast.success('Rating submitted!')
+      toast.error(err.message || 'Failed to submit rating')
     } finally {
       setSubmitting(false)
     }

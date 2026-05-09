@@ -62,7 +62,7 @@ router.post('/', verifyToken, async (req, res) => {
   }
 
   if (!mongoose.Types.ObjectId.isValid(listingId)) {
-    return res.status(400).json({ error: 'Invalid listing. Demo listings can be rated locally in the browser.' })
+    return res.status(400).json({ error: 'Invalid listing ID' })
   }
 
   try {
