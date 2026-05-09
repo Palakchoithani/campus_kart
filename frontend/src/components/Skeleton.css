@@ -1,0 +1,32 @@
+/* ── Skeleton Shimmer Theme ─────────────────── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.03) 75%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+@keyframes shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+.skeleton-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.skeleton-bubble--mine .skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(250, 204, 21, 0.2) 25%,
+    rgba(250, 204, 21, 0.4) 50%,
+    rgba(250, 204, 21, 0.2) 75%
+  );
+}
